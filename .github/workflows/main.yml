@@ -1,54 +1,76 @@
-name: Angular CI/CD
+name: Professional DevSecOps Pipeline
 
-# 1. Triggers (Kab chalega?)
 on:
   push:
-    branches: [ "main" ] # Jab bhi 'main' branch pe push hoga
+    branches: [ "main", "devsecops-*" ]
   pull_request:
-    branches: [ "main" ] # Jab koi Pull Request 'main' me merge hone aayegi
+    branches: [ "main" ]
 
-# 2. Jobs (Kya kaam karega?)
 jobs:
-  build:
-    # Konsa OS use karein? (Ubuntu sabse fast aur common hai)
+  # 1. Job for Secret Scanning (Parallel to SCA)
+  gitleaks:
+    name: Secret Scanning
     runs-on: ubuntu-latest
-
     steps:
-    # Step 1: Code ko virtual machine par le kar aao
-    - name: Checkout Code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --verbose --redact
 
-    - name: Gitleaks Scan
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: --verbose --redact
+  # 2. Job for SCA (Parallel to Gitleaks)
+  trivy_fs:
+    name: Software Composition Analysis (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
-    # Step: Trivy SCA Scan (Software Composition Analysis)
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs' # Filesystem scan
-        scan-ref: '.' # Poora project scan karo
-        format: 'table'
-        exit-code: '1' # Agar vulnerability mile to pipeline FAIL kar do
-        severity: 'CRITICAL,HIGH' # Sirf Critical aur High par fail hoga
+  # 3. Job for Build & Containerization (Wait for Security)
+  build:
+    name: build
+    needs: [gitleaks, trivy_fs] # Tabhi chalega jab dono security jobs pass honge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    
-    # Step 2: Node.js setup karo (Angular ke liye zaroori hai)
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm' # Purani files cache karega taaki next time fast ho
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    # Step 3: Library files install karo
-    - name: Install Dependencies
-      run: npm install
+      - name: Install Dependencies
+        run: npm install
 
-    # Step 4: Code ko compile/build karo
-    - name: Build Project
-      run: npm run build
+      - name: Build Project
+        run: npm run build
+
+      # Create Docker Image
+      - name: Build Docker Image
+        run: docker build -t angular-web-app:${{ github.sha }} .
+
+      # 4. Container Scan (Last Security Gate)
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'angular-web-app:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
