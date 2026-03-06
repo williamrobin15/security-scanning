@@ -17,6 +17,15 @@ jobs:
     # Step 1: Code ko virtual machine par le kar aao
     - name: Checkout Code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Gitleaks Scan
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: --verbose --redact
     
     # Step 2: Node.js setup karo (Angular ke liye zaroori hai)
     - name: Setup Node.js
