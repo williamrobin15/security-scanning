@@ -26,6 +26,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         args: --verbose --redact
+
+    # Step: Trivy SCA Scan (Software Composition Analysis)
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs' # Filesystem scan
+        scan-ref: '.' # Poora project scan karo
+        format: 'table'
+        exit-code: '1' # Agar vulnerability mile to pipeline FAIL kar do
+        severity: 'CRITICAL,HIGH' # Sirf Critical aur High par fail hoga
+
     
     # Step 2: Node.js setup karo (Angular ke liye zaroori hai)
     - name: Setup Node.js
