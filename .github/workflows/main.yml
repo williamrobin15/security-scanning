@@ -42,8 +42,8 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   # 3. Job for Build & Containerization (Wait for Security)
-  build_and_docker:
-    name: Build & Dockerize
+  build:
+    name: build
     needs: [gitleaks, trivy_fs] # Tabhi chalega jab dono security jobs pass honge
     runs-on: ubuntu-latest
     steps:
