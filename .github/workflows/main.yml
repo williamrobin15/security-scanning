@@ -1,0 +1,34 @@
+name: Angular CI/CD
+
+# 1. Triggers (Kab chalega?)
+on:
+  push:
+    branches: [ "main" ] # Jab bhi 'main' branch pe push hoga
+  pull_request:
+    branches: [ "main" ] # Jab koi Pull Request 'main' me merge hone aayegi
+
+# 2. Jobs (Kya kaam karega?)
+jobs:
+  build:
+    # Konsa OS use karein? (Ubuntu sabse fast aur common hai)
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Code ko virtual machine par le kar aao
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    # Step 2: Node.js setup karo (Angular ke liye zaroori hai)
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm' # Purani files cache karega taaki next time fast ho
+
+    # Step 3: Library files install karo
+    - name: Install Dependencies
+      run: npm install
+
+    # Step 4: Code ko compile/build karo
+    - name: Build Project
+      run: npm run build
